@@ -116,6 +116,11 @@ generated files of the harnesses you enabled.
 .craftkit/bin/craftkit version             # show the installed kit version
 ```
 
+Inside an initialized repo, the machine-wide `craftkit` delegates to the
+repo-vendored `.craftkit/bin/craftkit`, so updates take effect immediately —
+no need to re-run the installer (installs older than 0.4.1 need one re-run
+of install.sh to pick up the delegating CLI).
+
 Updates replace `.craftkit/` wholesale and re-sync shims; repo-owned files
 (`.craftkit-project/`, `AGENTS.md`, `ONBOARDING.md`, `artifacts/`) are never
 touched. `craftkit doctor` warns if `.craftkit/` has hand edits (they'd be

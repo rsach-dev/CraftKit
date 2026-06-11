@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.1 — 2026-06-11
+
+- Fix: the machine-wide `craftkit` (from install.sh) now delegates to the
+  repo-vendored `.craftkit/bin/craftkit` when the two differ, so
+  `craftkit update` takes effect immediately — a stale PATH copy no longer
+  hides new commands
+
+
 ## 0.4.0 — 2026-06-11
 
 Harness removal + safer updates on older repos.

@@ -23,6 +23,14 @@ say()  { printf '%s\n' "$*"; }
 warn() { printf 'craftkit: %s\n' "$*" >&2; }
 die()  { warn "$*"; exit 1; }
 
+# Inside an initialized repo, the vendored CLI (.craftkit/bin/craftkit) is the
+# source of truth — it tracks the kit version `craftkit update` installed. If
+# this running copy differs (e.g. a stale machine-wide install), delegate.
+if [ -f "$KIT_DIR/bin/craftkit" ] && [ -z "${CRAFTKIT_NO_DELEGATE:-}" ] \
+   && ! cmp -s "$0" "$KIT_DIR/bin/craftkit" 2>/dev/null; then
+  CRAFTKIT_NO_DELEGATE=1 exec sh "$KIT_DIR/bin/craftkit" "$@"
+fi
+
 # ---------------------------------------------------------------- source kit
 # Sets $SRC to a local directory containing the kit repo (kit/, adapters/, …).
 fetch_source() { # $1 = optional git ref

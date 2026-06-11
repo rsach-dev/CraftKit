@@ -169,6 +169,14 @@ check "update skips absent harness"      "! test -d '$TMP3/.github'"
 check "update keeps present harnesses"   "test -f '$TMP3/.claude/commands/ck-feature.md' -a -e '$TMP3/.pi/skills'"
 check "update: doctor passes"            "( cd '$TMP3' && sh .craftkit/bin/craftkit doctor )"
 
+# A machine-wide CLI that differs from the repo-vendored copy must delegate to
+# it (otherwise `craftkit update` looks like a no-op for new commands).
+cp "$TMP3/.craftkit/bin/craftkit" "$TMP3/vendored-cli.bak"
+printf '#!/bin/sh\necho "vendored-cli $*"\n' > "$TMP3/.craftkit/bin/craftkit"
+check "stale CLI delegates to vendored"  "( cd '$TMP3' && sh '$KIT_REPO/bin/craftkit' version | grep -q 'vendored-cli version' )"
+mv "$TMP3/vendored-cli.bak" "$TMP3/.craftkit/bin/craftkit"
+check "identical CLI does not delegate"  "( cd '$TMP3' && CRAFTKIT_SRC='$KIT_REPO' sh '$KIT_REPO/bin/craftkit' version >/dev/null )"
+
 echo "== craftkit remove =="
 # TMP2 has all three harnesses enabled; peel one off, then uninstall.
 ( cd "$TMP2" && sh .craftkit/bin/craftkit remove copilot-cli > remove.log 2>&1 ) || cat "$TMP2/remove.log"
