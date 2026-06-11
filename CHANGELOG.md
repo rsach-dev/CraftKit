@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+Harness selection + agent-side setup skill.
+
+- `craftkit init` now requires a harness choice (claude-code, copilot-cli,
+  pi): interactive runs are prompted; non-interactive runs must pass
+  `--harnesses a,b` (or `--harnesses all`)
+- Re-running `craftkit init` merges new selections into the existing
+  `harnesses:` list — adding a harness later is `craftkit init --harnesses pi`
+- `project.yaml`: new `harnesses:` list records the choice; `sync` runs only
+  the enabled adapters and `doctor` checks only their shims
+- Copilot CLI adapter now emits native skill shims
+  (`.github/skills/ck-*/SKILL.md`, per GitHub's "Add skills to Copilot CLI"
+  guide) instead of `.github/agents/ck-*.md` custom agents; legacy agent
+  shims are removed on sync
+- New `init` skill (`/ck-init`): finishes setup after `craftkit init` —
+  completes project.yaml (modules, commands, stack packs), fills AGENTS.md /
+  ONBOARDING.md placeholders, generates context files via context-sync, runs
+  doctor
+
+
 ## 0.2.0 — 2026-06-10
 
 Stack packs: per-module stack opinion without context bloat.

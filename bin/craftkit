@@ -1,7 +1,8 @@
 #!/bin/sh
 # craftkit — install and maintain CraftKit in any repository.
 #
-#   craftkit init             vendor the kit into ./.craftkit, generate config + shims
+#   craftkit init [--harnesses a,b]  vendor the kit, generate config + shims
+#                             (a harness is required; re-run init to add more)
 #   craftkit sync             regenerate harness shims from the kit + project.yaml
 #   craftkit update [--to V]  replace ./.craftkit with a newer kit version, re-sync
 #   craftkit doctor           validate the installation
@@ -58,9 +59,92 @@ vendor_kit() { # copies kit content from $SRC into .craftkit (kit-owned, replace
   (cd "$KIT_DIR" && find . -type f ! -name MANIFEST | LC_ALL=C sort | xargs cksum > MANIFEST)
 }
 
+# ----------------------------------------------------------------- harnesses
+all_harnesses() { # every adapter shipped in the vendored kit
+  for a in "$KIT_DIR"/adapters/*.sh; do
+    [ -f "$a" ] || continue
+    basename "$a" .sh
+  done
+}
+
+enabled_harnesses() { # from project.yaml's `harnesses: [a, b]`; pre-0.3 files lack the key -> all
+  if [ -f "$PROJ_DIR/project.yaml" ]; then
+    h=$(sed -n 's/^harnesses:[[:space:]]*\[\(.*\)\].*/\1/p' "$PROJ_DIR/project.yaml" | head -1 | tr ',' ' ')
+    if [ -n "$h" ]; then
+      for w in $h; do printf '%s\n' "$w"; done
+      return 0
+    fi
+  fi
+  all_harnesses
+}
+
+# Sets $HARNESSES (space-separated). $1 = comma list from --harnesses (may be
+# empty), $2 = currently enabled harnesses (space-separated; empty on a fresh
+# init). A selection is required on fresh init; on re-init the selection is
+# merged into the current list (re-run init to add a harness later).
+choose_harnesses() {
+  avail=$(all_harnesses)
+  sel="${1:-}"
+  current="${2:-}"
+  if [ -z "$sel" ] && [ -t 0 ] && [ -t 1 ] && [ -r /dev/tty ]; then
+    say ""
+    say "Which agent harnesses should CraftKit wire up?"
+    i=0
+    for h in $avail; do
+      i=$((i+1))
+      case " $current " in
+        *" $h "*) say "  $i) $h (already enabled)";;
+        *)        say "  $i) $h";;
+      esac
+    done
+    if [ -n "$current" ]; then
+      printf 'Add harnesses (names or numbers, comma-separated; Enter = keep current): '
+      read -r sel < /dev/tty || sel=""
+    else
+      while [ -z "$sel" ]; do
+        printf 'Enable (names or numbers, comma-separated, or "all"): '
+        read -r sel < /dev/tty || { sel=""; break; }
+        [ -n "$sel" ] || say "  at least one harness is required"
+      done
+    fi
+  fi
+  if [ -z "$sel" ]; then
+    [ -n "$current" ] || die "a harness is required: craftkit init --harnesses claude-code[,copilot-cli,pi]"
+    HARNESSES="$current"
+    return 0
+  fi
+  [ "$sel" = "all" ] && sel=$(echo $avail | tr ' ' ',')
+  HARNESSES="$current"
+  for tok in $(printf '%s' "$sel" | tr ',' ' '); do
+    pick=""
+    i=0
+    for h in $avail; do
+      i=$((i+1))
+      { [ "$tok" = "$h" ] || [ "$tok" = "$i" ]; } && pick="$h"
+    done
+    [ -n "$pick" ] || die "unknown harness: $tok (available: $(echo $avail))"
+    case " $HARNESSES " in *" $pick "*) ;; *) HARNESSES="$HARNESSES $pick";; esac
+  done
+  HARNESSES=${HARNESSES# }
+}
+
+write_harnesses() { # rewrite the harnesses: line in an existing project.yaml
+  hy=$(echo $HARNESSES | sed 's/ /, /g')
+  tmp=$(mktemp)
+  if grep -q '^harnesses:' "$PROJ_DIR/project.yaml"; then
+    sed "s|^harnesses:.*|harnesses: [$hy]|" "$PROJ_DIR/project.yaml" > "$tmp"
+  else
+    awk -v line="harnesses: [$hy]" '{print} /^kit_version:/{print line}' "$PROJ_DIR/project.yaml" > "$tmp"
+  fi
+  mv "$tmp" "$PROJ_DIR/project.yaml"
+  say "  updated:        .craftkit-project/project.yaml (harnesses: [$hy])"
+}
+
 run_sync() {
   [ -d "$KIT_DIR/adapters" ] || die "no .craftkit/adapters — run 'craftkit init' first"
-  for a in "$KIT_DIR"/adapters/*.sh; do
+  for h in $(enabled_harnesses); do
+    a="$KIT_DIR/adapters/$h.sh"
+    [ -f "$a" ] || { warn "no adapter for harness '$h' (check project.yaml) — skipping"; continue; }
     sh "$a" "$REPO_ROOT"
   done
 }
@@ -107,17 +191,34 @@ fill_template() { # $1=template $2=destination (skipped if destination exists)
       -e "s|{{TEST_CMD}}|$TEST_CMD|g" \
       -e "s|{{PROTECTED_GLOB}}|$PROTECTED_GLOB|g" \
       -e "s|{{STACK_PACK}}|$STACK_PACK|g" \
+      -e "s|{{HARNESSES}}|$(echo $HARNESSES | sed 's/ /, /g')|g" \
       "$1" > "$2"
   say "  generated:      ${2#"$REPO_ROOT"/}"
 }
 
 # ------------------------------------------------------------------ commands
 cmd_init() {
+  hsel=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --harnesses)   hsel="${2:?usage: craftkit init [--harnesses claude-code,copilot-cli,pi]}"; shift 2;;
+      --harnesses=*) hsel="${1#--harnesses=}"; shift;;
+      *) die "unknown option: $1 (try 'craftkit help')";;
+    esac
+  done
   [ -d "$REPO_ROOT/.git" ] || warn "not a git repository root — continuing anyway"
   fetch_source ""
   say "Vendoring kit into .craftkit/ ..."
   vendor_kit
   say "Kit version: $KIT_VERSION"
+
+  current=""
+  [ -f "$PROJ_DIR/project.yaml" ] && current=$(echo $(enabled_harnesses))
+  choose_harnesses "$hsel" "$current"
+  say "Harnesses: $HARNESSES"
+  if [ -f "$PROJ_DIR/project.yaml" ] && [ "$HARNESSES" != "$current" ]; then
+    write_harnesses
+  fi
 
   detect_repo
   say "Detected: repo=$REPO_NAME stack=\"$STACK\" ticket-prefix=$TICKET_PREFIX stack-pack=${STACK_PACK:-none}"
@@ -135,10 +236,13 @@ cmd_init() {
 CraftKit $KIT_VERSION installed.
 
 Next steps:
-  1. Review .craftkit-project/project.yaml (modules, build commands, rules)
-  2. Open your agent harness and run /ck-context-sync to generate module profiles
-  3. New to the kit? Run /ck-onboard
-  4. Commit: .craftkit/ .craftkit-project/ AGENTS.md ONBOARDING.md CLAUDE.md .claude/ .github/ .pi/
+  1. Open your agent harness and run /ck-init to finish setup (reviews
+     project.yaml, assigns stack packs, generates context files)
+     — or do it by hand: review .craftkit-project/project.yaml, then run /ck-context-sync
+  2. New to the kit? Run /ck-onboard
+  3. Commit: .craftkit/ .craftkit-project/ AGENTS.md ONBOARDING.md plus the
+     generated harness files (CLAUDE.md .claude/ .github/ .pi/ — only the
+     harnesses you enabled)
 EOF
 }
 
@@ -180,21 +284,27 @@ cmd_doctor() {
     fi
   fi
 
-  # Shims in sync: every workflow + non-shadowed skill has a Claude shim.
+  # Shims in sync — only for the harnesses enabled in project.yaml.
+  enabled=$(echo $(enabled_harnesses))
+  has_harness() { case " $enabled " in *" $1 "*) return 0;; *) return 1;; esac; }
+  ok "enabled harnesses: $enabled"
   for wf in "$KIT_DIR"/workflows/*.md; do
     [ -f "$wf" ] || continue
     n=$(basename "$wf" .md)
-    [ -f "$REPO_ROOT/.claude/commands/ck-$n.md" ] || bad "missing shim .claude/commands/ck-$n.md — run 'craftkit sync'"
+    ! has_harness claude-code || [ -f "$REPO_ROOT/.claude/commands/ck-$n.md" ] || bad "missing shim .claude/commands/ck-$n.md — run 'craftkit sync'"
+    ! has_harness copilot-cli || [ -f "$REPO_ROOT/.github/skills/ck-$n/SKILL.md" ] || bad "missing shim .github/skills/ck-$n/SKILL.md — run 'craftkit sync'"
   done
   for sk in "$KIT_DIR"/skills/*/SKILL.md; do
     [ -f "$sk" ] || continue
     n=$(basename "$(dirname "$sk")")
     [ "$n" = "references" ] && continue
     [ -f "$KIT_DIR/workflows/$n.md" ] && continue
-    [ -f "$REPO_ROOT/.claude/commands/ck-$n.md" ] || bad "missing shim .claude/commands/ck-$n.md — run 'craftkit sync'"
-    [ -f "$REPO_ROOT/.github/agents/ck-$n.md" ] || bad "missing shim .github/agents/ck-$n.md — run 'craftkit sync'"
+    ! has_harness claude-code || [ -f "$REPO_ROOT/.claude/commands/ck-$n.md" ] || bad "missing shim .claude/commands/ck-$n.md — run 'craftkit sync'"
+    ! has_harness copilot-cli || [ -f "$REPO_ROOT/.github/skills/ck-$n/SKILL.md" ] || bad "missing shim .github/skills/ck-$n/SKILL.md — run 'craftkit sync'"
   done
-  [ -e "$REPO_ROOT/.pi/context" ] && ok ".pi/context wired" || note ".pi/context not wired — run 'craftkit sync'"
+  if has_harness pi; then
+    [ -e "$REPO_ROOT/.pi/context" ] && ok ".pi/context wired" || note ".pi/context not wired — run 'craftkit sync'"
+  fi
 
   if [ -d "$PROJ_DIR/overrides" ] && ls "$PROJ_DIR"/overrides/*/SKILL.md >/dev/null 2>&1; then
     note "skill overrides active: $(ls -d "$PROJ_DIR"/overrides/*/ | xargs -n1 basename | tr '\n' ' ')"
@@ -225,7 +335,7 @@ cmd_stacks() {
   done
 }
 
-cmd_help() { sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; }
+cmd_help() { sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; }
 
 case "${1:-help}" in
   init)    shift; cmd_init "$@";;

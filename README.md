@@ -34,11 +34,17 @@ CRAFTKIT_SRC=/path/to/CraftKit /path/to/CraftKit/bin/craftkit init
 
 `init` vendors the kit into `.craftkit/`, detects your stack (Gradle, Maven,
 npm, Cargo, Go, Python), generates `.craftkit-project/project.yaml`,
-`AGENTS.md`, and `ONBOARDING.md`, and wires up all three harnesses. Then:
+`AGENTS.md`, and `ONBOARDING.md`, and wires up the harnesses you choose —
+it prompts interactively (claude-code, copilot-cli, pi); non-interactive runs
+must pass `craftkit init --harnesses claude-code,pi` (or `--harnesses all`).
+The choice is recorded as `harnesses:` in `project.yaml`; re-run
+`craftkit init` later to add another harness (selections merge), or edit the
+list + `craftkit sync`. Then:
 
-1. Review `.craftkit-project/project.yaml`
-2. In your agent harness, run `/ck-context-sync` to generate module profiles
-3. Run `/ck-onboard` for the guided tour
+1. In your agent harness, run `/ck-init` — it completes `project.yaml`
+   (modules, stack packs, commands), generates module profiles, and runs the
+   doctor
+2. Run `/ck-onboard` for the guided tour
 
 ## Everyday commands
 
@@ -66,7 +72,7 @@ Installing in a workspace with several services/repos? See
 
 - **One source of truth.** Skills live in `.craftkit/skills/*/SKILL.md` as
   plain imperative markdown. Harness integration is one-line generated shims
-  (`.claude/commands/`, `.pi/`, `.github/agents/`) — regenerate any time with
+  (`.claude/commands/`, `.pi/`, `.github/skills/`) — regenerate any time with
   `craftkit sync`.
 - **Artifacts, not vibes.** Each phase writes
   `artifacts/{TICKET}/N-*.md` with `status: approved` frontmatter; downstream

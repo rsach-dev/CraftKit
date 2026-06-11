@@ -62,13 +62,15 @@ TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
   git init -q .
   git commit -q --allow-empty -m "DEMO-1: initial commit"
   printf '{ "name": "demo", "scripts": { "build": "true", "test": "true" } }\n' > package.json
-  CRAFTKIT_SRC="$KIT_REPO" sh "$KIT_REPO/bin/craftkit" init > init.log 2>&1 || { cat init.log; exit 1; }
+  mkdir -p .github/agents && touch .github/agents/ck-legacy.md   # pre-0.3 shim to migrate
+  CRAFTKIT_SRC="$KIT_REPO" sh "$KIT_REPO/bin/craftkit" init --harnesses all < /dev/null > init.log 2>&1 || { cat init.log; exit 1; }
 )
 
 check "vendored kit"            "test -f '$TMP/.craftkit/KIT_VERSION'"
 check "manifest written"        "test -f '$TMP/.craftkit/MANIFEST'"
 check "project.yaml generated"  "test -f '$TMP/.craftkit-project/project.yaml'"
 check "ticket prefix detected"  "grep -q 'prefixes: \[DEMO\]' '$TMP/.craftkit-project/project.yaml'"
+check "harnesses=all recorded"  "grep -q 'harnesses: \[claude-code, copilot-cli, pi\]' '$TMP/.craftkit-project/project.yaml'"
 check "stack detected (npm)"    "grep -q 'npm run build' '$TMP/.craftkit-project/project.yaml'"
 check "AGENTS.md generated"     "test -f '$TMP/AGENTS.md'"
 check "ONBOARDING.md generated" "test -f '$TMP/ONBOARDING.md'"
@@ -81,10 +83,13 @@ check "claude collision: review -> workflow" "grep -q 'workflows/review.md' '$TM
 check "claude settings.json"          "test -f '$TMP/.claude/settings.json'"
 check "CLAUDE.md marked block"        "grep -q 'craftkit:begin' '$TMP/CLAUDE.md'"
 
-# Copilot shims.
-check "copilot agent shim exists"     "test -f '$TMP/.github/agents/ck-bugfix.md'"
-check "copilot shim has description"  "grep -q '^description: \"' '$TMP/.github/agents/ck-bugfix.md'"
+# Copilot CLI skill shims (.github/skills/<name>/SKILL.md format).
+check "copilot skill shim exists"     "test -f '$TMP/.github/skills/ck-bugfix/SKILL.md'"
+check "copilot shim has name"         "grep -q '^name: ck-bugfix$' '$TMP/.github/skills/ck-bugfix/SKILL.md'"
+check "copilot shim has description"  "grep -q '^description: \"' '$TMP/.github/skills/ck-bugfix/SKILL.md'"
+check "copilot collision: review -> workflow" "grep -q 'workflows/review.md' '$TMP/.github/skills/ck-review/SKILL.md'"
 check "copilot instructions block"    "grep -q 'craftkit:begin' '$TMP/.github/copilot-instructions.md'"
+check "legacy agent shims migrated"   "! ls '$TMP/.github/agents/'ck-*.md"
 
 # pi wiring.
 check "pi skills link"  "test -e '$TMP/.pi/skills' -o -f '$TMP/.pi/skills.md'"
@@ -114,13 +119,41 @@ TMP2=$(mktemp -d); trap 'rm -rf "$TMP" "$TMP2"' EXIT
   git init -q .
   git commit -q --allow-empty -m "JAVA-9: initial commit"
   printf 'plugins { id "org.springframework.boot" version "3.3.0" }\n' > build.gradle
-  CRAFTKIT_SRC="$KIT_REPO" sh "$KIT_REPO/bin/craftkit" init > init.log 2>&1 || { cat init.log; exit 1; }
+  CRAFTKIT_SRC="$KIT_REPO" sh "$KIT_REPO/bin/craftkit" init --harnesses all < /dev/null > init.log 2>&1 || { cat init.log; exit 1; }
 )
 check "stacks vendored"                 "test -f '$TMP2/.craftkit/stacks/java21-spring-gradle/conventions.md'"
 check "gradle fixture: pack detected"   "grep -q 'stack_pack: java21-spring-gradle' '$TMP2/.craftkit-project/project.yaml'"
 check "npm fixture: no pack assigned"   "! grep -q 'stack_pack: java' '$TMP/.craftkit-project/project.yaml'"
 check "craftkit stacks lists the pack"  "( cd '$TMP2' && sh .craftkit/bin/craftkit stacks | grep -q 'java21-spring-gradle —' )"
 check "doctor validates active pack"    "( cd '$TMP2' && sh .craftkit/bin/craftkit doctor | grep -q \"stack pack 'java21-spring-gradle' installed\" )"
+
+echo "== init with --harnesses claude-code =="
+TMP3=$(mktemp -d); trap 'rm -rf "$TMP" "$TMP2" "$TMP3"' EXIT
+(
+  cd "$TMP3"
+  git init -q .
+  git commit -q --allow-empty -m "SEL-1: initial commit"
+  printf '{ "name": "sel", "scripts": { "build": "true", "test": "true" } }\n' > package.json
+  CRAFTKIT_SRC="$KIT_REPO" sh "$KIT_REPO/bin/craftkit" init --harnesses claude-code < /dev/null > init.log 2>&1 || { cat init.log; exit 1; }
+)
+check "selection recorded in project.yaml" "grep -q 'harnesses: \[claude-code\]' '$TMP3/.craftkit-project/project.yaml'"
+check "claude shims generated"             "test -f '$TMP3/.claude/commands/ck-feature.md'"
+check "ck-init shim generated"             "grep -q 'skills/init/SKILL.md' '$TMP3/.claude/commands/ck-init.md'"
+check "no copilot shims"                   "! test -d '$TMP3/.github/skills'"
+check "no copilot instructions"            "! test -f '$TMP3/.github/copilot-instructions.md'"
+check "no pi wiring"                       "! test -e '$TMP3/.pi/skills' && ! test -f '$TMP3/.pi/skills.md'"
+check "doctor passes with one harness"     "( cd '$TMP3' && sh .craftkit/bin/craftkit doctor )"
+check "sync stays scoped"                  "( cd '$TMP3' && sh .craftkit/bin/craftkit sync >/dev/null 2>&1 && ! test -d '$TMP3/.github/skills' )"
+
+# Re-running init adds a harness (selections merge into project.yaml).
+( cd "$TMP3" && CRAFTKIT_SRC="$KIT_REPO" sh "$KIT_REPO/bin/craftkit" init --harnesses pi < /dev/null > reinit.log 2>&1 ) || cat "$TMP3/reinit.log"
+check "re-init merges harness"             "grep -q 'harnesses: \[claude-code, pi\]' '$TMP3/.craftkit-project/project.yaml'"
+check "re-init wires new harness"          "test -e '$TMP3/.pi/skills' -o -f '$TMP3/.pi/skills.md'"
+check "re-init keeps old harness"          "test -f '$TMP3/.claude/commands/ck-feature.md'"
+check "re-init still no copilot"           "! test -d '$TMP3/.github/skills'"
+
+check "init requires a harness"            "! ( cd '$TMP3' && rm -rf .craftkit-project && CRAFTKIT_SRC='$KIT_REPO' sh '$KIT_REPO/bin/craftkit' init < /dev/null >/dev/null 2>&1 )"
+check "init rejects unknown harness"       "! ( cd '$TMP3' && CRAFTKIT_SRC='$KIT_REPO' sh '$KIT_REPO/bin/craftkit' init --harnesses bogus < /dev/null >/dev/null 2>&1 )"
 
 echo "== result: $PASS passed, $FAIL failed =="
 [ "$FAIL" -eq 0 ]

@@ -3,6 +3,11 @@
 # every run; it is the only place repo-specific facts live.
 kit_version: {{KIT_VERSION}}
 
+# Agent harnesses to generate shims for. `craftkit sync` runs only these
+# adapters. Available: claude-code, copilot-cli, pi. Edit + re-run sync to
+# enable or disable one.
+harnesses: [{{HARNESSES}}]
+
 ticket:
   prefixes: [{{TICKET_PREFIX}}]
   commit_format: "{TICKET}: {description}"

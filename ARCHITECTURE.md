@@ -42,7 +42,7 @@ tri-harness support cheap.
                                        │  craftkit init / craftkit sync (generates shims)
             ┌──────────────────────────┼──────────────────────────┐
             ▼                          ▼                          ▼
-   .claude/commands/*.md       .pi/ (native discovery      .github/agents/*.md
+   .claude/commands/*.md       .pi/ (native discovery      .github/skills/ck-*/
    .claude/settings.json        of skills/ + context)      copilot-instructions.md
         Claude Code                     pi                  GitHub Copilot CLI
 ```
@@ -132,7 +132,7 @@ any-repo/
 ├── .pi/ → (symlink or pointer into .craftkit-project/context)
 └── .github/
     ├── copilot-instructions.md    ← generated; points at AGENTS.md + workflow index
-    └── agents/ck-*.md             ← generated Copilot custom-agent shims
+    └── skills/ck-*/SKILL.md       ← generated Copilot CLI skill shims
 ```
 
 **Ownership rule (the contract that makes updates safe):**
@@ -140,7 +140,7 @@ any-repo/
 | Path | Owner | On `craftkit update` |
 |------|-------|----------------------|
 | `.craftkit/` | kit | replaced wholesale |
-| Generated shims (`.claude/commands/ck-*`, `.github/agents/ck-*`, `copilot-instructions.md` craftkit block) | kit | regenerated |
+| Generated shims (`.claude/commands/ck-*`, `.github/skills/ck-*`, `copilot-instructions.md` craftkit block) | kit | regenerated |
 | `.craftkit-project/`, `AGENTS.md`, `ONBOARDING.md`, `artifacts/` | repo | never touched (init writes them only if absent) |
 
 ---
@@ -162,8 +162,8 @@ curl -fsSL https://raw.githubusercontent.com/rsach-dev/CraftKit/main/bin/craftki
 
 | Command | What it does |
 |---------|--------------|
-| `craftkit init` | Clones/copies the kit at the latest tag into `.craftkit/`; **detects the repo** (Gradle/Maven/npm/cargo/multi-module, test runner, commit conventions from git log); fills `project.yaml`, `AGENTS.md`, `ONBOARDING.md` from templates; runs all adapter generators; prints next steps. Interactive prompts only where detection fails. |
-| `craftkit sync` | Regenerates harness shims from `.craftkit/` + `project.yaml`. Run after editing `project.yaml` or adding overrides. |
+| `craftkit init` | Clones/copies the kit at the latest tag into `.craftkit/`; **detects the repo** (Gradle/Maven/npm/cargo/multi-module, test runner, commit conventions from git log); fills `project.yaml`, `AGENTS.md`, `ONBOARDING.md` from templates; asks which harnesses to enable (interactive prompt; non-interactive runs require `--harnesses a,b` or `--harnesses all`) and records the choice as `harnesses:` in `project.yaml`; re-running init merges new selections in, so adding a harness later is just `craftkit init --harnesses pi`; runs the enabled adapter generators; prints next steps. |
+| `craftkit sync` | Regenerates harness shims from `.craftkit/` + `project.yaml`, for the harnesses enabled in `project.yaml`. Run after editing `project.yaml` or adding overrides. |
 | `craftkit update [--to X.Y.Z]` | Replaces `.craftkit/` with the requested kit version, re-runs `sync`, prints the CHANGELOG delta. Repo-owned files untouched. |
 | `craftkit doctor` | Validates the install: shims in sync, `project.yaml` schema, dangling artifact references, harness configs present. |
 
@@ -304,9 +304,10 @@ are one-liners pointing at `.craftkit/`.
 - Copilot CLI reads `AGENTS.md` natively — the generated `AGENTS.md` is the
   primary integration point and carries the command index, critical rules, and
   pipeline overview.
-- Emits `.github/agents/ck-<name>.md` custom-agent shims (frontmatter
-  `name`/`description` + the same one-line "read and follow" body) so workflows
-  and skills are invokable by name.
+- Emits `.github/skills/ck-<name>/SKILL.md` skill shims (frontmatter
+  `name`/`description` + the same one-line "read and follow" body), the format
+  Copilot CLI discovers natively and exposes as `/ck-<name>`. Pre-0.3
+  `.github/agents/ck-*.md` custom-agent shims are removed on sync.
 - Maintains a marked block in `.github/copilot-instructions.md` mirroring the
   CLAUDE.md block (tool constraints, "load on demand", escalation pointer).
 
