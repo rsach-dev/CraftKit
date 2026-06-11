@@ -65,7 +65,10 @@ If the file exists:
 cat "./.craftkit-project/context/profiles/{module-name}.md"
 ```
 
-Use the profile to understand structure, key patterns, and conventions.
+Use the profile to understand structure, key patterns, and conventions. If
+the module has a `stack_pack` and
+`./.craftkit/stacks/{stack_pack}/references/triage.md` exists, read it for
+stack-specific scan heuristics (the token budgets below still apply).
 
 ### Step 4 — Refresh code (pre-flight)
 

@@ -104,7 +104,9 @@ cat "./artifacts/$TICKET/3-execution-plan.md"
 cat "./.craftkit-project/context/profiles/{module}.md"
 ```
 
-Load only the profiles of impacted modules.
+Load only the profiles of impacted modules. If a touched module has a
+`stack_pack`, also load `./.craftkit/stacks/{stack_pack}/conventions.md` —
+fixes must follow it.
 
 ### Step 4 — Locate affected files
 

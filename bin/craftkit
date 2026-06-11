@@ -5,6 +5,7 @@
 #   craftkit sync             regenerate harness shims from the kit + project.yaml
 #   craftkit update [--to V]  replace ./.craftkit with a newer kit version, re-sync
 #   craftkit doctor           validate the installation
+#   craftkit stacks           list available stack packs
 #   craftkit version          print installed kit version
 #
 # Source resolution (init/update): $CRAFTKIT_SRC may be a local checkout of the
@@ -46,6 +47,7 @@ vendor_kit() { # copies kit content from $SRC into .craftkit (kit-owned, replace
   rm -rf "$KIT_DIR"
   mkdir -p "$KIT_DIR"
   cp -R "$SRC/kit/skills" "$SRC/kit/workflows" "$SRC/kit/templates" "$KIT_DIR/"
+  if [ -d "$SRC/kit/stacks" ]; then cp -R "$SRC/kit/stacks" "$KIT_DIR/"; fi
   mkdir -p "$KIT_DIR/adapters" "$KIT_DIR/bin"
   cp "$SRC"/adapters/*.sh "$KIT_DIR/adapters/"
   cp "$SRC/bin/craftkit" "$KIT_DIR/bin/craftkit"
@@ -72,8 +74,12 @@ detect_repo() {
     | cut -d- -f1 | sort | uniq -c | sort -rn | head -1 | awk '{print $2}') || true
   [ -n "${TICKET_PREFIX:-}" ] || TICKET_PREFIX="PROJ"
 
+  STACK_PACK=""
   if [ -f "$REPO_ROOT/gradlew" ] || [ -f "$REPO_ROOT/build.gradle" ] || [ -f "$REPO_ROOT/build.gradle.kts" ]; then
     STACK="JVM / Gradle"; BUILD_CMD="./gradlew build"; TEST_CMD="./gradlew test"; PROTECTED_GLOB="config/**"
+    for f in "$REPO_ROOT/build.gradle" "$REPO_ROOT/build.gradle.kts" "$REPO_ROOT"/gradle/*.versions.toml; do
+      if [ -f "$f" ] && grep -Eq 'spring-boot|org\.springframework\.boot' "$f"; then STACK_PACK="java21-spring-gradle"; break; fi
+    done
   elif [ -f "$REPO_ROOT/pom.xml" ]; then
     STACK="JVM / Maven"; BUILD_CMD="mvn -B verify"; TEST_CMD="mvn -B test"; PROTECTED_GLOB="config/**"
   elif [ -f "$REPO_ROOT/package.json" ]; then
@@ -100,6 +106,7 @@ fill_template() { # $1=template $2=destination (skipped if destination exists)
       -e "s|{{BUILD_CMD}}|$BUILD_CMD|g" \
       -e "s|{{TEST_CMD}}|$TEST_CMD|g" \
       -e "s|{{PROTECTED_GLOB}}|$PROTECTED_GLOB|g" \
+      -e "s|{{STACK_PACK}}|$STACK_PACK|g" \
       "$1" > "$2"
   say "  generated:      ${2#"$REPO_ROOT"/}"
 }
@@ -113,7 +120,7 @@ cmd_init() {
   say "Kit version: $KIT_VERSION"
 
   detect_repo
-  say "Detected: repo=$REPO_NAME stack=\"$STACK\" ticket-prefix=$TICKET_PREFIX"
+  say "Detected: repo=$REPO_NAME stack=\"$STACK\" ticket-prefix=$TICKET_PREFIX stack-pack=${STACK_PACK:-none}"
   say "Generating repo-owned files (existing files are never overwritten):"
   mkdir -p "$PROJ_DIR/context/profiles" "$PROJ_DIR/overrides"
   fill_template "$KIT_DIR/templates/project.yaml.tmpl" "$PROJ_DIR/project.yaml"
@@ -195,10 +202,28 @@ cmd_doctor() {
   [ -d "$PROJ_DIR/context/profiles" ] && [ -n "$(ls -A "$PROJ_DIR/context/profiles" 2>/dev/null)" ] \
     && ok "module profiles present" || note "no module profiles yet — run /ck-context-sync in your harness"
 
+  # Every stack_pack referenced in project.yaml must exist in the vendored kit.
+  if [ -f "$PROJ_DIR/project.yaml" ]; then
+    for p in $(sed -n 's/^[[:space:]]*stack_pack:[[:space:]]*//p' "$PROJ_DIR/project.yaml" | sed 's/[[:space:]]*#.*//' | grep -v '^$' | sort -u); do
+      [ -d "$KIT_DIR/stacks/$p" ] && ok "stack pack '$p' installed" || bad "stack pack '$p' not found in .craftkit/stacks/ — see 'craftkit stacks'"
+    done
+  fi
+
   [ $fail -eq 0 ] && say "doctor: all checks passed" || die "doctor: failures found"
 }
 
 cmd_version() { cat "$KIT_DIR/KIT_VERSION" 2>/dev/null || die "not installed"; }
+
+cmd_stacks() {
+  [ -d "$KIT_DIR/stacks" ] || die "no stack packs installed (run init/update with a kit that ships kit/stacks/)"
+  say "Available stack packs (set per module via 'stack_pack:' in project.yaml):"
+  for d in "$KIT_DIR"/stacks/*/; do
+    [ -d "$d" ] || continue
+    n=$(basename "$d")
+    desc=$(sed -n 's/^description:[[:space:]]*"\{0,1\}//p' "$d/pack.yaml" 2>/dev/null | head -1 | sed 's/"$//')
+    say "  $n — ${desc:-no description}"
+  done
+}
 
 cmd_help() { sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; }
 
@@ -207,6 +232,7 @@ case "${1:-help}" in
   sync)    shift; run_sync;;
   update)  shift; cmd_update "$@";;
   doctor)  shift; cmd_doctor "$@";;
+  stacks)  cmd_stacks;;
   version) cmd_version;;
   help|--help|-h) cmd_help;;
   *) die "unknown command: $1 (try 'craftkit help')";;

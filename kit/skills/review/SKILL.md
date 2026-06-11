@@ -25,7 +25,10 @@ Phase name: `review`. Escalation file:
 cat "./.craftkit-project/project.yaml"
 ```
 
-Note module paths, build commands, and `rules.coverage_min`.
+Note module paths, build commands, and `rules.coverage_min`. For each
+impacted module with a `stack_pack`, also load
+`./.craftkit/stacks/{stack_pack}/conventions.md` (and nothing else from the
+pack) — review code quality against those conventions.
 
 ### Step 1 — Check for existing escalations
 

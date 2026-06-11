@@ -79,6 +79,10 @@ Installing in a workspace with several services/repos? See
 - **Repo contract.** Everything repo-specific (modules, build commands,
   ticket format, protected files) lives in
   `.craftkit-project/project.yaml` — the same skills work in any repo.
+- **Stack packs.** Opt a module into stack-specific opinion
+  (`stack_pack: java21-spring-gradle`) and the skills load small, targeted
+  convention/playbook files for that stack — one file per skill, on demand,
+  so context stays compact. See [docs/stack-packs.md](docs/stack-packs.md).
 
 ## Maintenance
 
@@ -98,6 +102,7 @@ wholesale on update, and `doctor` will warn if it has diverged.
 ```
 kit/skills/        11 phase skills + shared references
 kit/workflows/     feature, bugfix, deps, review, onboard
+kit/stacks/        stack packs (java21-spring-gradle, …)
 kit/templates/     project.yaml, AGENTS.md, ONBOARDING.md
 adapters/          shim generators: claude-code, pi, copilot-cli
 bin/craftkit       POSIX-sh CLI: init, sync, update, doctor

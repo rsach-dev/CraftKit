@@ -40,6 +40,10 @@ For each registered module, gather:
 
 Keep scans targeted — distill, don't ingest whole repos.
 
+If the module has a `stack_pack` and
+`./.craftkit/stacks/{stack_pack}/references/profile-template.md` exists,
+follow it for what to extract and how to render that module's profile.
+
 ### Step 3 — Update workspace.md
 
 Read the current `./.craftkit-project/context/workspace.md` (create from

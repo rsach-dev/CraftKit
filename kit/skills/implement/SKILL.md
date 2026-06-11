@@ -38,6 +38,15 @@ and per-module `build` commands. Also load persisted standards if present:
 cat "./.craftkit-project/context/coding-standards.md" 2>/dev/null
 ```
 
+For each impacted module with a `stack_pack` in `project.yaml`, also load its
+conventions (and nothing else from the pack):
+
+```bash
+cat "./.craftkit/stacks/{stack_pack}/conventions.md"
+```
+
+Precedence on conflict: coding-standards > module profile > pack conventions.
+
 ### Step 1 — Read execution plan
 
 ```bash

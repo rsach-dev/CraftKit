@@ -31,6 +31,20 @@ for r in $refs; do
   check "xref $rel" "test -f '$KIT_REPO/kit/$rel'"
 done
 
+# Stack packs: metadata is sound and context caps are respected.
+for pk in "$KIT_REPO"/kit/stacks/*/; do
+  [ -d "$pk" ] || continue
+  n=$(basename "$pk")
+  check "pack $n: pack.yaml name matches dir" "grep -q '^name: $n$' '$pk/pack.yaml'"
+  check "pack $n: has description" "grep -q '^description:' '$pk/pack.yaml'"
+  [ -f "$pk/conventions.md" ] && \
+    check "pack $n: conventions within cap" "[ \$(wc -l < '$pk/conventions.md') -le 80 ]"
+  for r in "$pk"references/*.md; do
+    [ -f "$r" ] || continue
+    check "pack $n: $(basename "$r") within cap" "[ \$(wc -l < '$r') -le 120 ]"
+  done
+done
+
 # Every /ck-<name> mentioned anywhere in docs resolves to a workflow or skill.
 cmds=$(grep -rhoE '/ck-[a-z][a-z-]*[a-z]' "$KIT_REPO/kit" "$KIT_REPO/docs" "$KIT_REPO/README.md" "$KIT_REPO/ARCHITECTURE.md" 2>/dev/null | sort -u)
 for c in $cmds; do
@@ -92,6 +106,21 @@ check "installed CLI runs"          "'$TMP/bin/craftkit' help"
 # Doctor flags hand edits to the vendored kit.
 ( cd "$TMP" && echo "edit" >> .craftkit/workflows/feature.md )
 check "doctor flags kit divergence" "( cd '$TMP' && sh .craftkit/bin/craftkit doctor 2>&1 | grep -q 'diverges' )"
+
+echo "== init into a gradle/spring temp repo =="
+TMP2=$(mktemp -d); trap 'rm -rf "$TMP" "$TMP2"' EXIT
+(
+  cd "$TMP2"
+  git init -q .
+  git commit -q --allow-empty -m "JAVA-9: initial commit"
+  printf 'plugins { id "org.springframework.boot" version "3.3.0" }\n' > build.gradle
+  CRAFTKIT_SRC="$KIT_REPO" sh "$KIT_REPO/bin/craftkit" init > init.log 2>&1 || { cat init.log; exit 1; }
+)
+check "stacks vendored"                 "test -f '$TMP2/.craftkit/stacks/java21-spring-gradle/conventions.md'"
+check "gradle fixture: pack detected"   "grep -q 'stack_pack: java21-spring-gradle' '$TMP2/.craftkit-project/project.yaml'"
+check "npm fixture: no pack assigned"   "! grep -q 'stack_pack: java' '$TMP/.craftkit-project/project.yaml'"
+check "craftkit stacks lists the pack"  "( cd '$TMP2' && sh .craftkit/bin/craftkit stacks | grep -q 'java21-spring-gradle —' )"
+check "doctor validates active pack"    "( cd '$TMP2' && sh .craftkit/bin/craftkit doctor | grep -q \"stack pack 'java21-spring-gradle' installed\" )"
 
 echo "== result: $PASS passed, $FAIL failed =="
 [ "$FAIL" -eq 0 ]

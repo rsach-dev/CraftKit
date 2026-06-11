@@ -87,6 +87,11 @@ craftkit/
 │   │   ├── deps.md                ← /ck-deps     (dependency updates)
 │   │   ├── review.md              ← /ck-review   (review-only)
 │   │   └── onboard.md             ← /ck-onboard  (interactive new-engineer tour)
+│   ├── stacks/                    ← stack packs (see §5.5)
+│   │   └── java21-spring-gradle/
+│   │       ├── pack.yaml
+│   │       ├── conventions.md
+│   │       └── references/{deps-update,triage,profile-template}.md
 │   └── templates/
 │       ├── project.yaml.tmpl      ← per-repo config template
 │       ├── AGENTS.md.tmpl
@@ -107,6 +112,7 @@ any-repo/
 │   ├── KIT_VERSION                ← pinned kit version this repo is on
 │   ├── skills/…
 │   ├── workflows/…
+│   ├── stacks/…
 │   └── templates/…
 ├── .craftkit-project/             ← REPO-OWNED (generated once by init, then yours)
 │   ├── project.yaml               ← stack, build commands, conventions, ownership (see §6)
@@ -205,6 +211,29 @@ equivalent to running the phase skill. Each skill:
 The escalation protocol and artifact conventions live in
 `kit/skills/references/` — they are the kit's most valuable assets for
 trainability (see §9).
+
+### 5.5 — Stack Packs (opinion without bloat)
+
+Skills are stack-neutral, which caps output quality: "follow module
+conventions" produces weaker code than stack-specific rules. Stack packs add
+that opinion as **layered context, not forked skills**:
+
+- A pack (`kit/stacks/<name>/`) is a handful of small markdown files, each
+  with **exactly one consumer skill and a line cap**: `conventions.md`
+  (~60 lines → implement/review/feedback), `references/deps-update.md`
+  (≤100 → deps-update), `references/triage.md` (~60 → triage),
+  `references/profile-template.md` (~50 → context-sync). All files optional.
+- Modules opt in per-module via `stack_pack:` in `project.yaml`; `craftkit
+  init` pre-fills it from detection. Mixed-stack workspaces work naturally —
+  each module loads only its own pack, or none.
+- **Context budget is the design constraint:** a skill never loads a whole
+  pack, only its single file, only for impacted modules. Precedence:
+  repo coding-standards > module profile > pack conventions > skill text.
+- Packs are kit content: versioned, vendored to `.craftkit/stacks/`, updated
+  with `craftkit update`, validated by `doctor`, listed by `craftkit stacks`.
+
+First pack: `java21-spring-gradle` (Java 21 / Spring Boot 3.x / Gradle).
+Authoring rules live in `docs/stack-packs.md`.
 
 ---
 

@@ -57,6 +57,9 @@ cat "./.craftkit-project/project.yaml"
   read-only. STOP.
 - Note the module's package manager from its manifest files, and the
   configured `rules.framework_anchors`.
+- If the module has a `stack_pack` and
+  `./.craftkit/stacks/{stack_pack}/references/deps-update.md` exists, read it —
+  it is the ecosystem playbook for Steps 4–9 and wins where more specific.
 
 ### Step 2 — Check for existing escalations
 

@@ -13,6 +13,7 @@ modules:
     path: {{MODULE_PATH}}   # "." for single-module repos, subdir for monorepos
     ownership: team         # team | external (external => read-only)
     stack: "{{STACK}}"
+    stack_pack: {{STACK_PACK}}  # optional; `craftkit stacks` lists packs. Empty = generic behavior
     build: "{{BUILD_CMD}}"
     test: "{{TEST_CMD}}"
 

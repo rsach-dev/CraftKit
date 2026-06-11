@@ -1,0 +1,15 @@
+# CraftKit stack pack metadata.
+name: java21-spring-gradle
+description: "Java 21 / Spring Boot 3.x / Gradle conventions and playbooks"
+detect:                       # used by `craftkit init` to suggest this pack
+  any_file: [build.gradle, build.gradle.kts]
+  manifest_contains: spring-boot
+
+# Context budget: every file in this pack is loaded by exactly ONE consumer,
+# on demand. Keep within the caps — packs must never bloat skill context.
+#
+#   file                              consumer skills            cap
+#   conventions.md                    implement, review, feedback   ~60 lines
+#   references/deps-update.md         deps-update                  ~100 lines
+#   references/triage.md              triage                        ~60 lines
+#   references/profile-template.md    context-sync                  ~50 lines
