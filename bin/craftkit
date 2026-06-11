@@ -5,6 +5,7 @@
 #                             (a harness is required; re-run init to add more)
 #   craftkit sync             regenerate harness shims from the kit + project.yaml
 #   craftkit update [--to V]  replace ./.craftkit with a newer kit version, re-sync
+#   craftkit remove <a,b|all> remove harness files ("all" uninstalls craftkit)
 #   craftkit doctor           validate the installation
 #   craftkit stacks           list available stack packs
 #   craftkit version          print installed kit version
@@ -67,15 +68,30 @@ all_harnesses() { # every adapter shipped in the vendored kit
   done
 }
 
-enabled_harnesses() { # from project.yaml's `harnesses: [a, b]`; pre-0.3 files lack the key -> all
-  if [ -f "$PROJ_DIR/project.yaml" ]; then
-    h=$(sed -n 's/^harnesses:[[:space:]]*\[\(.*\)\].*/\1/p' "$PROJ_DIR/project.yaml" | head -1 | tr ',' ' ')
-    if [ -n "$h" ]; then
-      for w in $h; do printf '%s\n' "$w"; done
-      return 0
-    fi
+detect_harnesses() { # infer enabled harnesses from generated files already in the repo
+  if [ -n "$(ls "$REPO_ROOT/.claude/commands"/ck-*.md 2>/dev/null)" ] \
+     || grep -qs 'craftkit:begin' "$REPO_ROOT/CLAUDE.md"; then
+    printf 'claude-code\n'
   fi
-  all_harnesses
+  if [ -n "$(ls -d "$REPO_ROOT/.github/skills"/ck-* 2>/dev/null)" ] \
+     || [ -n "$(ls "$REPO_ROOT/.github/agents"/ck-*.md 2>/dev/null)" ] \
+     || grep -qs 'craftkit:begin' "$REPO_ROOT/.github/copilot-instructions.md"; then
+    printf 'copilot-cli\n'
+  fi
+  if [ -L "$REPO_ROOT/.pi/skills" ] || [ -L "$REPO_ROOT/.pi/workflows" ]; then
+    printf 'pi\n'
+  fi
+}
+
+enabled_harnesses() { # from project.yaml's `harnesses: [a, b]`; pre-0.3 files
+  # lack the key -> detect from the files present (all, if none are found)
+  if [ -f "$PROJ_DIR/project.yaml" ] && grep -q '^harnesses:' "$PROJ_DIR/project.yaml"; then
+    h=$(sed -n 's/^harnesses:[[:space:]]*\[\(.*\)\].*/\1/p' "$PROJ_DIR/project.yaml" | head -1 | tr ',' ' ')
+    for w in $h; do printf '%s\n' "$w"; done
+    return 0
+  fi
+  d=$(detect_harnesses)
+  if [ -n "$d" ]; then printf '%s\n' "$d"; else all_harnesses; fi
 }
 
 # Sets $HARNESSES (space-separated). $1 = comma list from --harnesses (may be
@@ -138,6 +154,97 @@ write_harnesses() { # rewrite the harnesses: line in an existing project.yaml
   fi
   mv "$tmp" "$PROJ_DIR/project.yaml"
   say "  updated:        .craftkit-project/project.yaml (harnesses: [$hy])"
+}
+
+# --------------------------------------------------------------- removal
+strip_block() { # remove the craftkit marked block from $1; delete the file if only scaffold remains
+  f="$1"
+  [ -f "$f" ] || return 0
+  grep -q '<!-- craftkit:begin' "$f" || return 0
+  tmp=$(mktemp)
+  awk '/<!-- craftkit:begin/{skip=1} !skip{print} /<!-- craftkit:end -->/{skip=0}' "$f" > "$tmp"
+  if grep -vq -e '^[[:space:]]*$' -e '^# CLAUDE.md$' -e '^# Copilot Instructions$' "$tmp"; then
+    mv "$tmp" "$f"
+    say "  cleaned:  ${f#"$REPO_ROOT"/} (craftkit block removed)"
+  else
+    rm -f "$tmp" "$f"
+    say "  removed:  ${f#"$REPO_ROOT"/}"
+  fi
+}
+
+remove_harness() { # delete the generated files of harness $1
+  case "$1" in
+    claude-code)
+      rm -f "$REPO_ROOT/.claude/commands"/ck-*.md
+      rmdir "$REPO_ROOT/.claude/commands" 2>/dev/null || true
+      strip_block "$REPO_ROOT/CLAUDE.md"
+      # settings.json: delete only if it is still exactly the generated default
+      s="$REPO_ROOT/.claude/settings.json"
+      if [ -f "$s" ] && printf '{\n  "permissions": {\n    "deny": [\n      "Agent"\n    ]\n  }\n}\n' | cmp -s - "$s"; then
+        rm -f "$s"
+      fi
+      rmdir "$REPO_ROOT/.claude" 2>/dev/null || true
+      ;;
+    copilot-cli)
+      rm -rf "$REPO_ROOT/.github/skills"/ck-*
+      rmdir "$REPO_ROOT/.github/skills" 2>/dev/null || true
+      rm -f "$REPO_ROOT/.github/agents"/ck-*.md
+      rmdir "$REPO_ROOT/.github/agents" 2>/dev/null || true
+      strip_block "$REPO_ROOT/.github/copilot-instructions.md"
+      rmdir "$REPO_ROOT/.github" 2>/dev/null || true
+      ;;
+    pi)
+      for l in skills workflows context; do
+        p="$REPO_ROOT/.pi/$l"
+        [ -L "$p" ] && rm -f "$p"
+        if [ -f "$p.md" ] && grep -q 'CraftKit pointer' "$p.md"; then rm -f "$p.md"; fi
+      done
+      rmdir "$REPO_ROOT/.pi" 2>/dev/null || true
+      ;;
+    *) die "unknown harness: $1 (claude-code, copilot-cli, pi, or 'all')";;
+  esac
+  say "  removed harness: $1"
+}
+
+cmd_remove() {
+  sel="${1:?usage: craftkit remove <harness>[,<harness>...] | all}"
+  [ -d "$KIT_DIR" ] || [ -d "$PROJ_DIR" ] || die "no CraftKit installation found"
+
+  if [ "$sel" = "all" ]; then
+    for h in claude-code copilot-cli pi; do remove_harness "$h"; done
+    rm -rf "$KIT_DIR" "$PROJ_DIR"
+    say "  removed:  .craftkit/ .craftkit-project/"
+    for f in AGENTS.md ONBOARDING.md; do
+      if [ -f "$REPO_ROOT/$f" ]; then
+        if grep -qi 'craftkit' "$REPO_ROOT/$f"; then
+          rm -f "$REPO_ROOT/$f"; say "  removed:  $f"
+        else
+          say "  kept:     $f (does not mention CraftKit — not ours to delete)"
+        fi
+      fi
+    done
+    [ -d "$REPO_ROOT/artifacts" ] && say "  kept:     artifacts/ (your work product — delete manually if unwanted)"
+    say "CraftKit removed from this repo."
+    return 0
+  fi
+
+  for tok in $(printf '%s' "$sel" | tr ',' ' '); do
+    case "$tok" in claude-code|copilot-cli|pi) ;; *) die "unknown harness: $tok (claude-code, copilot-cli, pi, or 'all')";; esac
+  done
+  remaining=$(echo $(enabled_harnesses))
+  for tok in $(printf '%s' "$sel" | tr ',' ' '); do
+    remove_harness "$tok"
+    new=""
+    for h in $remaining; do [ "$h" = "$tok" ] || new="$new $h"; done
+    remaining=${new# }
+  done
+  if [ -f "$PROJ_DIR/project.yaml" ]; then
+    HARNESSES="$remaining"
+    write_harnesses
+  fi
+  if [ -z "$remaining" ]; then
+    warn "no harnesses left enabled — run 'craftkit init --harnesses …' to add one, or 'craftkit remove all' to uninstall"
+  fi
 }
 
 run_sync() {
@@ -253,6 +360,12 @@ cmd_update() {
   old=$(cat "$KIT_DIR/KIT_VERSION" 2>/dev/null || echo "unknown")
   fetch_source "${ref:+v$ref}"
   vendor_kit
+  # Pre-0.3 project.yaml has no harnesses: key — backfill it from the files
+  # present so sync only regenerates harnesses this repo actually uses.
+  if [ -f "$PROJ_DIR/project.yaml" ] && ! grep -q '^harnesses:' "$PROJ_DIR/project.yaml"; then
+    HARNESSES=$(echo $(enabled_harnesses))
+    write_harnesses
+  fi
   run_sync
   say "CraftKit updated: $old -> $KIT_VERSION"
   [ -f "$SRC/CHANGELOG.md" ] && { say ""; say "Changelog (top):"; head -30 "$SRC/CHANGELOG.md"; }
@@ -335,12 +448,13 @@ cmd_stacks() {
   done
 }
 
-cmd_help() { sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; }
+cmd_help() { sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; }
 
 case "${1:-help}" in
   init)    shift; cmd_init "$@";;
   sync)    shift; run_sync;;
   update)  shift; cmd_update "$@";;
+  remove)  shift; cmd_remove "$@";;
   doctor)  shift; cmd_doctor "$@";;
   stacks)  cmd_stacks;;
   version) cmd_version;;

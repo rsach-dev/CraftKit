@@ -84,8 +84,16 @@ Add — re-run init; selections merge into the existing list:
 craftkit init --harnesses pi      # adds pi, keeps what was enabled
 ```
 
-Remove — edit the `harnesses:` list in `project.yaml`, run
-`craftkit sync`, and delete that harness's generated files (see table above).
+Remove — deletes that harness's generated files and updates the
+`harnesses:` list:
+
+```bash
+craftkit remove copilot-cli       # one or several: claude-code,pi
+```
+
+Marked blocks are stripped from `CLAUDE.md` / `.github/copilot-instructions.md`
+(the file itself is deleted only if nothing else is in it), and
+`.claude/settings.json` is deleted only if still the generated default.
 
 ## After init: `/ck-init`
 
@@ -112,3 +120,16 @@ Updates replace `.craftkit/` wholesale and re-sync shims; repo-owned files
 (`.craftkit-project/`, `AGENTS.md`, `ONBOARDING.md`, `artifacts/`) are never
 touched. `craftkit doctor` warns if `.craftkit/` has hand edits (they'd be
 lost on update — use `.craftkit-project/overrides/` instead).
+
+## Uninstalling
+
+```bash
+.craftkit/bin/craftkit remove all
+```
+
+Removes every harness's generated files, `.craftkit/`, `.craftkit-project/`,
+and the generated `AGENTS.md`/`ONBOARDING.md` (kept if they don't mention
+CraftKit — i.e. they predate it). Kept either way: `artifacts/` (your work
+product) and any team-authored content in `CLAUDE.md` /
+`.github/copilot-instructions.md` (only the marked craftkit block is
+stripped).

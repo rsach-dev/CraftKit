@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.4.0 — 2026-06-11
+
+Harness removal + safer updates on older repos.
+
+- New `craftkit remove <harness>[,…]` command: deletes a harness's generated
+  files (shims, marked blocks, symlinks) and updates `harnesses:` in
+  project.yaml; `craftkit remove all` uninstalls CraftKit from the repo,
+  keeping `artifacts/`, team-authored content in CLAUDE.md /
+  copilot-instructions.md, and any AGENTS.md/ONBOARDING.md that predate it
+- Fix: an explicit empty `harnesses: []` is no longer treated as "all"
+- Fix: on pre-0.3 repos (project.yaml without a `harnesses:` key),
+  `craftkit update`/`sync` now detect the enabled harnesses from the files
+  present instead of regenerating all three; `update` backfills the
+  `harnesses:` key with the detected list
+
+
 ## 0.3.1 — 2026-06-11
 
 Documentation pass: crisper setup instructions.

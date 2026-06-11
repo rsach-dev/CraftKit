@@ -155,5 +155,40 @@ check "re-init still no copilot"           "! test -d '$TMP3/.github/skills'"
 check "init requires a harness"            "! ( cd '$TMP3' && rm -rf .craftkit-project && CRAFTKIT_SRC='$KIT_REPO' sh '$KIT_REPO/bin/craftkit' init < /dev/null >/dev/null 2>&1 )"
 check "init rejects unknown harness"       "! ( cd '$TMP3' && CRAFTKIT_SRC='$KIT_REPO' sh '$KIT_REPO/bin/craftkit' init --harnesses bogus < /dev/null >/dev/null 2>&1 )"
 
+echo "== update detects harnesses on pre-0.3 repos =="
+# Simulate a pre-0.3 install: project.yaml without a harnesses: key. update
+# must infer the enabled harnesses from the files present, not wire all three.
+(
+  cd "$TMP3"
+  CRAFTKIT_SRC="$KIT_REPO" sh "$KIT_REPO/bin/craftkit" init --harnesses claude-code,pi < /dev/null > init.log 2>&1 || { cat init.log; exit 1; }
+  grep -v '^harnesses:' .craftkit-project/project.yaml > p.tmp && mv p.tmp .craftkit-project/project.yaml
+  CRAFTKIT_SRC="$KIT_REPO" sh .craftkit/bin/craftkit update > update.log 2>&1 || { cat update.log; exit 1; }
+)
+check "update backfills harnesses key"   "grep -q 'harnesses: \[claude-code, pi\]' '$TMP3/.craftkit-project/project.yaml'"
+check "update skips absent harness"      "! test -d '$TMP3/.github'"
+check "update keeps present harnesses"   "test -f '$TMP3/.claude/commands/ck-feature.md' -a -e '$TMP3/.pi/skills'"
+check "update: doctor passes"            "( cd '$TMP3' && sh .craftkit/bin/craftkit doctor )"
+
+echo "== craftkit remove =="
+# TMP2 has all three harnesses enabled; peel one off, then uninstall.
+( cd "$TMP2" && sh .craftkit/bin/craftkit remove copilot-cli > remove.log 2>&1 ) || cat "$TMP2/remove.log"
+check "remove: copilot shims gone"        "! test -d '$TMP2/.github/skills'"
+check "remove: copilot instructions gone" "! test -f '$TMP2/.github/copilot-instructions.md'"
+check "remove: .github dir cleaned up"    "! test -d '$TMP2/.github'"
+check "remove: harnesses list updated"    "grep -q 'harnesses: \[claude-code, pi\]' '$TMP2/.craftkit-project/project.yaml'"
+check "remove: other harnesses untouched" "test -f '$TMP2/.claude/commands/ck-feature.md' -a -e '$TMP2/.pi/skills'"
+check "remove: doctor still passes"       "( cd '$TMP2' && sh .craftkit/bin/craftkit doctor )"
+check "remove rejects unknown harness"    "! ( cd '$TMP2' && sh .craftkit/bin/craftkit remove bogus >/dev/null 2>&1 )"
+
+( cd "$TMP2" && echo '# team note' >> CLAUDE.md )   # team content must survive the block strip
+( cd "$TMP2" && sh .craftkit/bin/craftkit remove all > remove-all.log 2>&1 ) || cat "$TMP2/remove-all.log"
+check "remove all: kit gone"              "! test -d '$TMP2/.craftkit'"
+check "remove all: project config gone"   "! test -d '$TMP2/.craftkit-project'"
+check "remove all: claude shims gone"     "! test -d '$TMP2/.claude'"
+check "remove all: pi wiring gone"        "! test -d '$TMP2/.pi'"
+check "remove all: AGENTS.md gone"        "! test -f '$TMP2/AGENTS.md'"
+check "remove all: ONBOARDING.md gone"    "! test -f '$TMP2/ONBOARDING.md'"
+check "remove all: team CLAUDE.md kept"   "grep -q 'team note' '$TMP2/CLAUDE.md' && ! grep -q 'craftkit:begin' '$TMP2/CLAUDE.md'"
+
 echo "== result: $PASS passed, $FAIL failed =="
 [ "$FAIL" -eq 0 ]

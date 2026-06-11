@@ -86,6 +86,7 @@ Installing in a workspace with several services/repos? See
 .craftkit/bin/craftkit sync     # regenerate shims after editing project.yaml
 .craftkit/bin/craftkit update   # upgrade the vendored kit (repo-owned files untouched)
 .craftkit/bin/craftkit doctor   # validate the installation
+.craftkit/bin/craftkit remove <harness>|all   # drop a harness, or uninstall entirely
 ```
 
 Customize via `project.yaml` first; for deeper changes, place a full skill

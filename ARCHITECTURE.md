@@ -166,6 +166,7 @@ curl -fsSL https://raw.githubusercontent.com/rsach-dev/CraftKit/main/bin/craftki
 | `craftkit sync` | Regenerates harness shims from `.craftkit/` + `project.yaml`, for the harnesses enabled in `project.yaml`. Run after editing `project.yaml` or adding overrides. |
 | `craftkit update [--to X.Y.Z]` | Replaces `.craftkit/` with the requested kit version, re-runs `sync`, prints the CHANGELOG delta. Repo-owned files untouched. |
 | `craftkit doctor` | Validates the install: shims in sync, `project.yaml` schema, dangling artifact references, harness configs present. |
+| `craftkit remove <a,b\|all>` | Removes the named harnesses' generated files and updates `harnesses:` in `project.yaml`; `remove all` uninstalls CraftKit (keeps `artifacts/`, team-authored file content, and pre-existing docs). |
 
 Why shell and not node/python: `sh` and `git` exist on every developer machine;
 init must work before any toolchain is set up — including in a freshly cloned
