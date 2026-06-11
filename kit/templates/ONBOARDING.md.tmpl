@@ -1,0 +1,58 @@
+# Onboarding — Agent-Driven Development in {{REPO_NAME}}
+
+Welcome! This repo uses **CraftKit**: instead of asking a coding agent to
+"just build it", work flows through phases — each producing a reviewable
+artifact, each gated by *you*. The agent never guesses; when it's unsure, it
+asks you structured questions and waits.
+
+## Day one
+
+1. Open your agent harness in the repo root — any of these works the same way:
+   - **Claude Code** — `claude`
+   - **pi** — `pi`
+   - **GitHub Copilot CLI** — `copilot`
+2. Run `/ck-onboard`. It walks you through the modules, the pipeline, and a
+   toy ticket end-to-end (~20 minutes, touches no source code).
+
+## Day-to-day commands
+
+| You want to… | Run |
+|--------------|-----|
+| Build a feature | `/ck-feature` |
+| Fix a bug (have a trace/error?) | `/ck-bugfix` |
+| Review your branch before a PR | `/ck-review` |
+| Update dependencies | `/ck-deps` |
+| Run a single phase (resume mid-pipeline) | `/ck-requirements`, `/ck-tech-spec`, `/ck-execution-plan`, `/ck-implement`, `/ck-ship`, … |
+
+Every workflow pauses at each phase and shows you a summary with options.
+Nothing advances without your approval; nothing is pushed without `ship`.
+
+## When the agent escalates
+
+This is normal and good — it means the agent refused to guess.
+
+1. Open `artifacts/{TICKET}/escalations/{phase}.md`
+2. Each question has **Context** (why it matters) and **Impact** (what it
+   unblocks). Replace each `<!-- PENDING -->` with your answer.
+3. Re-run the same command. Your answers may resolve everything or raise
+   follow-ups (a new round in the same file) — keep answering until it
+   proceeds.
+
+## Where everything lives
+
+| Path | What it is |
+|------|-----------|
+| `artifacts/{TICKET}/` | The paper trail: requirements → tech spec → plan → review per ticket. Read a finished ticket's directory to see how the team decomposes work. |
+| `.craftkit-project/project.yaml` | Module registry, build commands, ticket format, protected files |
+| `.craftkit-project/context/` | Workspace summary + per-module coding patterns |
+| `.craftkit/` | The vendored kit (skills + workflows). Don't edit — it's replaced on `craftkit update`. |
+| `AGENTS.md` | The rules every harness loads |
+
+## Learning the codebase through the pipeline
+
+- Browse completed `artifacts/{TICKET}/` directories — each is a worked
+  example: what was asked, how it was designed, how it was reviewed.
+- Read `escalations/` files in those tickets — they record the questions
+  experts asked and the decisions made, with reasoning.
+- Approve gates slowly at first: read each artifact before choosing
+  "proceed". That review *is* the training.

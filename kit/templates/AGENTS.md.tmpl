@@ -1,0 +1,73 @@
+# AGENTS.md — {{REPO_NAME}}
+
+This repo uses **CraftKit** (v{{KIT_VERSION}}) — a pipeline of agent skills
+for structured, human-gated, artifact-driven development. This file is the
+harness-neutral entry point: pi and GitHub Copilot CLI read it natively;
+Claude Code is pointed here from `CLAUDE.md`.
+
+## Modules
+
+See `.craftkit-project/project.yaml` for the authoritative module registry
+(paths, ownership, build commands) and
+`.craftkit-project/context/workspace.md` for conventions. Modules marked
+`ownership: external` are **read-only** — never modify them without explicit
+user permission.
+
+## Commands
+
+| Command | Purpose |
+|---------|---------|
+| `/ck-feature` | Full pipeline, human-in-the-loop (requirements → … → ship) |
+| `/ck-bugfix` | Triage → plan → implement → review → ship |
+| `/ck-deps` | Dependency updates (framework anchors: minor/patch only) |
+| `/ck-review` | Review a branch, optional feedback-fix loop |
+| `/ck-onboard` | Interactive new-engineer tour |
+| `/ck-requirements` … `/ck-ship` | Individual pipeline phases (power users) |
+| `/ck-triage`, `/ck-deps-update` | Standalone phase skills |
+| `/ck-context-sync` | Regenerate `.craftkit-project/context/` profiles |
+
+Skill definitions live in `.craftkit/skills/`, workflows in
+`.craftkit/workflows/`. Slash-command shims are generated — run
+`craftkit sync` after changing `project.yaml`, never edit shims by hand.
+
+## The Pipeline
+
+Features flow through phases; each phase produces a markdown artifact consumed
+by the next, in `artifacts/{TICKET}/`:
+
+| Phase | Skill | Output |
+|-------|-------|--------|
+| 1 | requirements | `1-requirements.md` |
+| 2 | tickets | ticket text (stdout) |
+| 3 | tech-spec | `2-tech-spec.md` |
+| 4 | execution-plan | `3-execution-plan.md` |
+| 5 | implement | code changes + batch commit |
+| 6 | review | `4-review.md` |
+| 7 | feedback | code changes (from comments) |
+| 8 | ship | branch push + PR description |
+| T | triage | `5-triage.md` |
+| D | deps-update | version bumps + `6-deps-update.md` |
+
+## Critical Rules
+
+1. **Never guess — escalate.** Binary confidence: either a skill has 100%
+   clarity, or it writes `artifacts/{TICKET}/escalations/{phase}.md` and
+   stops. Protocol: `.craftkit/skills/references/escalation-protocol.md`.
+2. **External modules are read-only.**
+3. **Pull latest before analyzing code.** Never analyze stale or dirty
+   checkouts.
+4. **Never weaken quality gates.** `rules.protected_files` are untouchable;
+   fix the code, not the configs.
+5. **Artifact status gates.** Downstream skills refuse artifacts without
+   `status: approved` in their frontmatter.
+6. **Load context on demand.** workspace.md + impacted-module profiles + the
+   one upstream artifact — nothing speculative.
+7. **Batch commit** per module, message format `{{TICKET_PREFIX}}-XXXX: {description}`.
+
+## Escalation Workflow (Human-in-the-Loop)
+
+1. A skill lacking confidence writes `artifacts/{TICKET}/escalations/{phase}.md`
+   with structured questions (each with **Context** and **Impact**)
+2. Unanswered questions are marked `<!-- PENDING -->`
+3. You replace `<!-- PENDING -->` with your answer and re-run the skill
+4. Loop until `status: resolved`; escalation files are append-only
