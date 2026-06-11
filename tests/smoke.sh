@@ -31,6 +31,13 @@ for r in $refs; do
   check "xref $rel" "test -f '$KIT_REPO/kit/$rel'"
 done
 
+# Every /ck-<name> mentioned anywhere in docs resolves to a workflow or skill.
+cmds=$(grep -rhoE '/ck-[a-z][a-z-]*[a-z]' "$KIT_REPO/kit" "$KIT_REPO/docs" "$KIT_REPO/README.md" "$KIT_REPO/ARCHITECTURE.md" 2>/dev/null | sort -u)
+for c in $cmds; do
+  n=${c#/ck-}
+  check "command $c resolves" "test -f '$KIT_REPO/kit/workflows/$n.md' -o -f '$KIT_REPO/kit/skills/$n/SKILL.md'"
+done
+
 # No leftover org-specific or legacy naming.
 check "no 'fc-' references" "! grep -rn 'fc-' '$KIT_REPO/kit' '$KIT_REPO/adapters' '$KIT_REPO/bin'"
 

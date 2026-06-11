@@ -50,8 +50,17 @@ npm, Cargo, Go, Python), generates `.craftkit-project/project.yaml`,
 | `/ck-deps` | Dependency updates with framework-anchor guardrails |
 | `/ck-onboard` | Interactive tour for new engineers |
 
-Individual phases are also available (`/ck-requirements`, `/ck-tech-spec`,
-`/ck-implement`, …) for resuming mid-pipeline.
+Usage guides: [feature](docs/workflows/feature.md) ·
+[bugfix](docs/workflows/bugfix.md) · [deps](docs/workflows/deps.md) ·
+[review](docs/workflows/review.md) · [onboard](docs/workflows/onboard.md)
+
+Individual phases are also available (`/ck-requirements`, `/ck-tickets`,
+`/ck-tech-spec`, `/ck-execution-plan`, `/ck-implement`, `/ck-feedback`,
+`/ck-ship`, plus standalone `/ck-triage` and `/ck-deps-update`) for resuming
+mid-pipeline; the review phase runs via `/ck-review`.
+
+Installing in a workspace with several services/repos? See
+[docs/multi-repo-workspace.md](docs/multi-repo-workspace.md).
 
 ## How it works
 
@@ -93,6 +102,7 @@ kit/templates/     project.yaml, AGENTS.md, ONBOARDING.md
 adapters/          shim generators: claude-code, pi, copilot-cli
 bin/craftkit       POSIX-sh CLI: init, sync, update, doctor
 install.sh         curl-able installer: puts `craftkit` on your PATH
+docs/              usage guides: multi-repo workspaces + one per workflow
 tests/smoke.sh     content lint + end-to-end init test
 ARCHITECTURE.md    full design document
 ```
