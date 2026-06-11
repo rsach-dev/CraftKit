@@ -144,8 +144,12 @@ any-repo/
 A single dependency-free shell script, installed by the bootstrap one-liner:
 
 ```bash
+# put `craftkit` on your PATH (one time):
+curl -fsSL https://raw.githubusercontent.com/rsach-dev/CraftKit/main/install.sh | sh
 # in any repo root:
-curl -fsSL https://raw.githubusercontent.com/<owner>/craftkit/main/bin/craftkit | sh -s init
+craftkit init
+# or one-shot without installing:
+curl -fsSL https://raw.githubusercontent.com/rsach-dev/CraftKit/main/bin/craftkit | sh -s init
 # or, once vendored:
 .craftkit/bin/craftkit <command>
 ```

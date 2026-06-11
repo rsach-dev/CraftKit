@@ -11,7 +11,7 @@
 # craftkit repo or a git URL; defaults to $CRAFTKIT_REPO below.
 set -eu
 
-CRAFTKIT_REPO="${CRAFTKIT_REPO:-https://github.com/craftkit-dev/craftkit.git}"
+CRAFTKIT_REPO="${CRAFTKIT_REPO:-https://github.com/rsach-dev/CraftKit.git}"
 REPO_ROOT="$(pwd)"
 KIT_DIR="$REPO_ROOT/.craftkit"
 PROJ_DIR="$REPO_ROOT/.craftkit-project"

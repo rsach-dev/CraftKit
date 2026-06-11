@@ -78,6 +78,10 @@ check "CLAUDE.md block not duplicated" "test \$(grep -c 'craftkit:begin' '$TMP/C
 # Doctor passes on a fresh install.
 check "doctor passes" "( cd '$TMP' && sh .craftkit/bin/craftkit doctor )"
 
+# Installer (offline via CRAFTKIT_SRC).
+check "installer installs craftkit" "CRAFTKIT_SRC='$KIT_REPO' CRAFTKIT_INSTALL_DIR='$TMP/bin' sh '$KIT_REPO/install.sh' && test -x '$TMP/bin/craftkit'"
+check "installed CLI runs"          "'$TMP/bin/craftkit' help"
+
 # Doctor flags hand edits to the vendored kit.
 ( cd "$TMP" && echo "edit" >> .craftkit/workflows/feature.md )
 check "doctor flags kit divergence" "( cd '$TMP' && sh .craftkit/bin/craftkit doctor 2>&1 | grep -q 'diverges' )"

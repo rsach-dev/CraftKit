@@ -9,12 +9,27 @@ and the agent **escalates instead of guessing**.
 Works identically across **pi**, **Claude Code**, and **GitHub Copilot CLI** —
 skills are harness-agnostic markdown; each harness gets thin generated shims.
 
-## Install (in any repo)
+## Install
+
+Put the `craftkit` command on your PATH (installs to `~/.local/bin` by default):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<owner>/craftkit/main/bin/craftkit | sh -s init
-# or from a local checkout:
-CRAFTKIT_SRC=/path/to/craftkit /path/to/craftkit/bin/craftkit init
+curl -fsSL https://raw.githubusercontent.com/rsach-dev/CraftKit/main/install.sh | sh
+```
+
+Then, in any repository:
+
+```bash
+cd <your-repo> && craftkit init
+```
+
+Alternatives:
+
+```bash
+# one-shot, no install:
+curl -fsSL https://raw.githubusercontent.com/rsach-dev/CraftKit/main/bin/craftkit | sh -s init
+# from a local checkout (offline):
+CRAFTKIT_SRC=/path/to/CraftKit /path/to/CraftKit/bin/craftkit init
 ```
 
 `init` vendors the kit into `.craftkit/`, detects your stack (Gradle, Maven,
@@ -77,6 +92,7 @@ kit/workflows/     feature, bugfix, deps, review, onboard
 kit/templates/     project.yaml, AGENTS.md, ONBOARDING.md
 adapters/          shim generators: claude-code, pi, copilot-cli
 bin/craftkit       POSIX-sh CLI: init, sync, update, doctor
+install.sh         curl-able installer: puts `craftkit` on your PATH
 tests/smoke.sh     content lint + end-to-end init test
 ARCHITECTURE.md    full design document
 ```
