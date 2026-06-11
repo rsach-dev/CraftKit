@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.1 — 2026-06-11
+
+Documentation pass: crisper setup instructions.
+
+- README: single "Get started" path (install → `craftkit init` → `/ck-init`);
+  alternatives moved out
+- New docs/installation.md: install options, harness selection/add/remove,
+  what each harness generates, updating and version pinning
+- multi-repo guide: setup flow uses `/ck-init`; context-sync kept for
+  profile refresh
+- ONBOARDING template: points at the repo's `harnesses:` list instead of
+  assuming all three harnesses
+- install.sh: post-install hint mentions the harness prompt and `/ck-init`
+
+
 ## 0.3.0 — 2026-06-11
 
 Harness selection + agent-side setup skill.

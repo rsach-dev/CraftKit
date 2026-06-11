@@ -42,4 +42,5 @@ case ":$PATH:" in
 esac
 say ""
 say "Get started in any repository:"
-say "  cd <your-repo> && craftkit init"
+say "  cd <your-repo> && craftkit init   # picks your agent harness(es)"
+say "then run /ck-init inside your agent harness to finish setup"

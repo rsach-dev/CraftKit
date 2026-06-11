@@ -9,42 +9,33 @@ and the agent **escalates instead of guessing**.
 Works identically across **pi**, **Claude Code**, and **GitHub Copilot CLI** —
 skills are harness-agnostic markdown; each harness gets thin generated shims.
 
-## Install
+## Get started
 
-Put the `craftkit` command on your PATH (installs to `~/.local/bin` by default):
+Three steps: install the CLI, initialize your repo, let the agent finish setup.
 
 ```bash
+# 1. Install the craftkit command (once per machine)
 curl -fsSL https://raw.githubusercontent.com/rsach-dev/CraftKit/main/install.sh | sh
+
+# 2. Initialize your repository — pick your harness(es) at the prompt
+cd <your-repo>
+craftkit init
 ```
 
-Then, in any repository:
-
-```bash
-cd <your-repo> && craftkit init
+```text
+# 3. Open your agent harness (claude / copilot / pi) and run:
+/ck-init
 ```
 
-Alternatives:
+`craftkit init` vendors the kit into `.craftkit/`, detects your stack,
+generates the config and docs, and wires up the harnesses you select.
+`/ck-init` then finishes the setup with the agent's help: it completes
+`project.yaml` (modules, build commands, stack packs), generates module
+profiles, and validates the install. New to the kit? Run `/ck-onboard` for a
+guided tour.
 
-```bash
-# one-shot, no install:
-curl -fsSL https://raw.githubusercontent.com/rsach-dev/CraftKit/main/bin/craftkit | sh -s init
-# from a local checkout (offline):
-CRAFTKIT_SRC=/path/to/CraftKit /path/to/CraftKit/bin/craftkit init
-```
-
-`init` vendors the kit into `.craftkit/`, detects your stack (Gradle, Maven,
-npm, Cargo, Go, Python), generates `.craftkit-project/project.yaml`,
-`AGENTS.md`, and `ONBOARDING.md`, and wires up the harnesses you choose —
-it prompts interactively (claude-code, copilot-cli, pi); non-interactive runs
-must pass `craftkit init --harnesses claude-code,pi` (or `--harnesses all`).
-The choice is recorded as `harnesses:` in `project.yaml`; re-run
-`craftkit init` later to add another harness (selections merge), or edit the
-list + `craftkit sync`. Then:
-
-1. In your agent harness, run `/ck-init` — it completes `project.yaml`
-   (modules, stack packs, commands), generates module profiles, and runs the
-   doctor
-2. Run `/ck-onboard` for the guided tour
+More install options (non-interactive, offline, adding a harness later,
+version pinning): [docs/installation.md](docs/installation.md).
 
 ## Everyday commands
 
@@ -60,10 +51,9 @@ Usage guides: [feature](docs/workflows/feature.md) ·
 [bugfix](docs/workflows/bugfix.md) · [deps](docs/workflows/deps.md) ·
 [review](docs/workflows/review.md) · [onboard](docs/workflows/onboard.md)
 
-Individual phases are also available (`/ck-requirements`, `/ck-tickets`,
-`/ck-tech-spec`, `/ck-execution-plan`, `/ck-implement`, `/ck-feedback`,
-`/ck-ship`, plus standalone `/ck-triage` and `/ck-deps-update`) for resuming
-mid-pipeline; the review phase runs via `/ck-review`.
+Each pipeline phase is also runnable on its own (`/ck-requirements`,
+`/ck-implement`, …) for resuming mid-pipeline — see the generated `AGENTS.md`
+in your repo for the full index.
 
 Installing in a workspace with several services/repos? See
 [docs/multi-repo-workspace.md](docs/multi-repo-workspace.md).
@@ -113,7 +103,7 @@ kit/templates/     project.yaml, AGENTS.md, ONBOARDING.md
 adapters/          shim generators: claude-code, pi, copilot-cli
 bin/craftkit       POSIX-sh CLI: init, sync, update, doctor
 install.sh         curl-able installer: puts `craftkit` on your PATH
-docs/              usage guides: multi-repo workspaces + one per workflow
+docs/              installation reference, multi-repo guide, one guide per workflow
 tests/smoke.sh     content lint + end-to-end init test
 ARCHITECTURE.md    full design document
 ```

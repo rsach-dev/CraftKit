@@ -57,7 +57,7 @@ printf 'internal/\nexternal/\n' > .gitignore
 ### 2. Install CraftKit
 
 ```bash
-craftkit init
+craftkit init        # pick your harness(es) at the prompt
 ```
 
 Detection will see no manifest at the workspace root — that's fine; the
@@ -100,14 +100,14 @@ Rules of thumb:
 
 ```bash
 craftkit sync          # regenerate shims after editing project.yaml
-craftkit doctor        # sanity check
 ```
 
-Then, in your agent harness, run `/ck-context-sync`. It scans every
-registered module and writes `.craftkit-project/context/workspace.md` (the
-registry summary skills load first) plus one ~60-line profile per service
-(coding patterns, layout, build). Re-run it whenever you add a service or a
-service's conventions change materially.
+Then, in your agent harness, run `/ck-init`. It verifies the registry you
+just wrote (paths exist, build/test commands work), assigns stack packs,
+writes `.craftkit-project/context/workspace.md` plus one ~60-line profile
+per service, and runs the doctor. (You can also write the registry in step 3
+with broad strokes and let `/ck-init` fill in the details.) Later, when only
+the profiles are stale, `/ck-context-sync` regenerates just those.
 
 ### 5. Commit the workspace
 
